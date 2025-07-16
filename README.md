@@ -23,7 +23,7 @@ A FastAPI-based application that scans Kubernetes clusters for security anti-pat
 
 ```bash
 # Clone the repository (or download the files)
-git clone <repository-url>
+git clone [<repository-url>](https://github.com/harpaldhillon/KubeSecurityScanner.git)
 cd kubernetes-security-scanner
 
 # Create virtual environment
