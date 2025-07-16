@@ -7,8 +7,10 @@ import asyncio
 import logging
 from typing import Dict, Any
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
+import os
 
 from models import ScanResponse, ErrorResponse
 from scanner import KubernetesSecurityScanner
@@ -31,6 +33,18 @@ app = FastAPI(
 # Global client manager
 client_manager = KubernetesClientManager()
 
+# Mount static files and templates
+if os.path.exists("templates"):
+    # Serve the HTML interface
+    @app.get("/ui", response_class=HTMLResponse)
+    async def get_ui():
+        """Serve the web interface"""
+        try:
+            with open("templates/index.html", "r") as f:
+                return HTMLResponse(content=f.read())
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="UI template not found")
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -50,13 +64,29 @@ async def shutdown_event():
     logger.info("Kubernetes client closed")
 
 
-@app.get("/", response_model=Dict[str, str])
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    """Health check endpoint"""
+    """Serve the web interface as default"""
+    try:
+        with open("templates/index.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        # Fallback to JSON response if template not found
+        return JSONResponse(content={
+            "status": "healthy",
+            "service": "Kubernetes Security Scanner",
+            "version": "1.1.0",
+            "message": "Web interface not available. Use /api endpoints for API access."
+        })
+
+
+@app.get("/api", response_model=Dict[str, str])
+async def api_root():
+    """API health check endpoint"""
     return {
         "status": "healthy",
         "service": "Kubernetes Security Scanner",
-        "version": "1.0.0"
+        "version": "1.1.0"
     }
 
 

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Security Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #2980b9, #1f6391);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #229954, #1e8449);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+
+        .status {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .result-section {
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .result-header {
+            background: #f5f5f5;
+            padding: 15px;
+            font-weight: 600;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-content {
+            padding: 15px;
+            display: none;
+        }
+
+        .result-content.active {
+            display: block;
+        }
+
+        .violation {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .violation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .violation-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .severity {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .severity.critical {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .severity.high {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .severity.medium {
+            background: #fff8e1;
+            color: #ff8f00;
+        }
+
+        .severity.low {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .violation-details {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .remediation {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 10px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .summary-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 2em;
+            font-weight: 600;
+            color: #3498db;
+        }
+
+        .summary-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .controls-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .control-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+        }
+
+        .control-id {
+            font-weight: 600;
+            color: #3498db;
+        }
+
+        .control-title {
+            font-weight: 600;
+            margin: 5px 0;
+        }
+
+        .control-level {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+
+        .toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        .toggle-icon.rotated {
+            transform: rotate(180deg);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Kubernetes Security Scanner</h1>
+            <p>Detect security anti-patterns and CIS compliance violations in your Kubernetes cluster</p>
+        </div>
+
+        <div class="main-content">
+            <div class="dashboard">
+                <div class="card">
+                    <h3>Cluster Health</h3>
+                    <p>Check the connection status to your Kubernetes cluster</p>
+                    <button class="btn" onclick="checkHealth()">Check Health</button>
+                </div>
+
+                <div class="card">
+                    <h3>Security Scan</h3>
+                    <p>Perform a comprehensive security scan of your cluster</p>
+                    <button class="btn btn-success" onclick="startScan()">Start Scan</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>CIS Controls Information</h3>
+                <p>View supported CIS Kubernetes Benchmark controls</p>
+                <button class="btn btn-warning" onclick="showCISControls()">View CIS Controls</button>
+            </div>
+
+            <div id="status" class="status" style="display: none;"></div>
+
+            <div id="results" class="results" style="display: none;">
+                <div id="summary" class="summary"></div>
+                <div id="violations"></div>
+            </div>
+
+            <div id="cis-controls" class="controls-info" style="display: none;">
+                <h3>Supported CIS Kubernetes Benchmark Controls</h3>
+                <div id="controls-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scanResults = null;
+
+        function showStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        async function checkHealth() {
+            showStatus('Checking cluster health...', 'loading');
+            
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus('✅ Cluster is healthy and accessible', 'success');
+                } else {
+                    showStatus(`❌ Health check failed: ${data.reason || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Failed to check health: ${error.message}`, 'error');
+            }
+        }
+
+        async function startScan() {
+            showStatus('Starting security scan... This may take a few minutes.', 'loading');
+            document.getElementById('results').style.display = 'none';
+            
+            try {
+                const response = await fetch('/scan');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    scanResults = data;
+                    displayResults(data);
+                    showStatus('✅ Security scan completed successfully', 'success');
+                } else {
+                    showStatus(`❌ Scan failed: ${data.detail || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Failed to perform scan: ${error.message}`, 'error');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const summaryDiv = document.getElementById('summary');
+            const violationsDiv = document.getElementById('violations');
+            
+            // Display summary
+            summaryDiv.innerHTML = `
+                <div class="summary-item">
+                    <div class="summary-number">${data.summary.namespacesScanned}</div>
+                    <div class="summary-label">Namespaces Scanned</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">${data.summary.latestTagIssues}</div>
+                    <div class="summary-label">Latest Tag Issues</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">${data.summary.rootUserIssues}</div>
+                    <div class="summary-label">Root User Issues</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">${data.summary.cisViolations}</div>
+                    <div class="summary-label">CIS Violations</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">${data.summary.networkPolicyViolations}</div>
+                    <div class="summary-label">Network Policy Issues</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">${data.summary.totalIssues}</div>
+                    <div class="summary-label">Total Issues</div>
+                </div>
+            `;
+            
+            // Display violations
+            violationsDiv.innerHTML = '';
+            
+            addViolationSection('Latest Tag Containers', data.latestTagContainers, 'latest');
+            addViolationSection('Root User Containers', data.rootContainers, 'root');
+            addViolationSection('CIS Compliance Violations', data.cisViolations, 'cis');
+            addViolationSection('Network Policy Violations', data.networkPolicyViolations, 'network');
+            addViolationSection('Service Account Violations', data.serviceAccountViolations, 'service');
+            
+            resultsDiv.style.display = 'block';
+        }
+
+        function addViolationSection(title, violations, type) {
+            if (violations.length === 0) return;
+            
+            const violationsDiv = document.getElementById('violations');
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'result-section';
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'result-header';
+            headerDiv.innerHTML = `
+                <span>${title} (${violations.length})</span>
+                <span class="toggle-icon">▼</span>
+            `;
+            headerDiv.onclick = () => toggleSection(sectionDiv);
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'result-content';
+            
+            violations.forEach(violation => {
+                const violationDiv = document.createElement('div');
+                violationDiv.className = 'violation';
+                violationDiv.innerHTML = formatViolation(violation, type);
+                contentDiv.appendChild(violationDiv);
+            });
+            
+            sectionDiv.appendChild(headerDiv);
+            sectionDiv.appendChild(contentDiv);
+            violationsDiv.appendChild(sectionDiv);
+        }
+
+        function formatViolation(violation, type) {
+            switch (type) {
+                case 'latest':
+                    return `
+                        <div class="violation-header">
+                            <div class="violation-title">Latest Tag Usage</div>
+                            <div class="severity medium">Medium</div>
+                        </div>
+                        <div class="violation-details">
+                            <strong>Namespace:</strong> ${violation.namespace}<br>
+                            <strong>Pod:</strong> ${violation.pod}<br>
+                            <strong>Container:</strong> ${violation.container}<br>
+                            <strong>Image:</strong> ${violation.image}
+                        </div>
+                        <div class="remediation">
+                            <strong>Remediation:</strong> Use specific version tags instead of 'latest' for better security and reproducibility.
+                        </div>
+                    `;
+                case 'root':
+                    return `
+                        <div class="violation-header">
+                            <div class="violation-title">Root User Container</div>
+                            <div class="severity high">High</div>
+                        </div>
+                        <div class="violation-details">
+                            <strong>Namespace:</strong> ${violation.namespace}<br>
+                            <strong>Pod:</strong> ${violation.pod}<br>
+                            <strong>Container:</strong> ${violation.container}<br>
+                            <strong>Reason:</strong> ${violation.reason}
+                        </div>
+                        <div class="remediation">
+                            <strong>Remediation:</strong> Set runAsNonRoot: true and runAsUser to a non-zero value in the security context.
+                        </div>
+                    `;
+                case 'cis':
+                    return `
+                        <div class="violation-header">
+                            <div class="violation-title">${violation.control_id}: ${violation.control_title}</div>
+                            <div class="severity ${violation.severity.toLowerCase()}">${violation.severity}</div>
+                        </div>
+                        <div class="violation-details">
+                            <strong>Namespace:</strong> ${violation.namespace}<br>
+                            <strong>Pod:</strong> ${violation.pod}<br>
+                            <strong>Container:</strong> ${violation.container}<br>
+                            <strong>Level:</strong> ${violation.level}<br>
+                            <strong>Description:</strong> ${violation.description}
+                        </div>
+                        <div class="remediation">
+                            <strong>Remediation:</strong> ${violation.remediation}
+                        </div>
+                    `;
+                case 'network':
+                    return `
+                        <div class="violation-header">
+                            <div class="violation-title">${violation.control_id}: ${violation.control_title}</div>
+                            <div class="severity ${violation.severity.toLowerCase()}">${violation.severity}</div>
+                        </div>
+                        <div class="violation-details">
+                            <strong>Namespace:</strong> ${violation.namespace}<br>
+                            <strong>Description:</strong> ${violation.description}
+                        </div>
+                        <div class="remediation">
+                            <strong>Remediation:</strong> ${violation.remediation}
+                        </div>
+                    `;
+                case 'service':
+                    return `
+                        <div class="violation-header">
+                            <div class="violation-title">${violation.control_id}: ${violation.control_title}</div>
+                            <div class="severity ${violation.severity.toLowerCase()}">${violation.severity}</div>
+                        </div>
+                        <div class="violation-details">
+                            <strong>Namespace:</strong> ${violation.namespace}<br>
+                            <strong>Service Account:</strong> ${violation.service_account}<br>
+                            <strong>Description:</strong> ${violation.description}
+                        </div>
+                        <div class="remediation">
+                            <strong>Remediation:</strong> ${violation.remediation}
+                        </div>
+                    `;
+                default:
+                    return '<div>Unknown violation type</div>';
+            }
+        }
+
+        function toggleSection(sectionDiv) {
+            const content = sectionDiv.querySelector('.result-content');
+            const icon = sectionDiv.querySelector('.toggle-icon');
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                icon.classList.remove('rotated');
+            } else {
+                content.classList.add('active');
+                icon.classList.add('rotated');
+            }
+        }
+
+        async function showCISControls() {
+            const controlsDiv = document.getElementById('cis-controls');
+            const contentDiv = document.getElementById('controls-content');
+            
+            showStatus('Loading CIS controls information...', 'loading');
+            
+            try {
+                const response = await fetch('/cis-controls');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    contentDiv.innerHTML = `
+                        <p><strong>Benchmark Version:</strong> ${data.benchmark_version}</p>
+                        <p><strong>Release Date:</strong> ${data.release_date}</p>
+                        <div class="controls-grid">
+                            ${Object.entries(data.supported_controls).map(([id, control]) => `
+                                <div class="control-item">
+                                    <div class="control-id">${id}</div>
+                                    <div class="control-title">${control.title}</div>
+                                    <div class="control-level">${control.level}</div>
+                                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">${control.description}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                    controlsDiv.style.display = 'block';
+                    hideStatus();
+                } else {
+                    showStatus(`❌ Failed to load CIS controls: ${data.detail || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Failed to load CIS controls: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            checkHealth();
+        });
+    </script>
+</body>
+</html>
