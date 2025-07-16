@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Python FastAPI application that scans Kubernetes clusters to detect security anti-patterns. The application identifies containers using the `:latest` image tag and containers running as root user, providing a REST API endpoint to retrieve security scan results in structured JSON format.
+This is a Python FastAPI application that scans Kubernetes clusters to detect security anti-patterns and CIS Kubernetes Benchmark compliance violations. The application identifies containers using the `:latest` image tag, containers running as root user, and various CIS compliance violations, providing REST API endpoints to retrieve comprehensive security scan results in structured JSON format.
 
 ## User Preferences
 
@@ -36,19 +36,39 @@ The application follows a modular, microservice-oriented architecture built with
 - **Error Handling**: Graceful fallback between authentication methods
 
 ### 3. Security Scanner (`scanner.py`)
-- **Purpose**: Core scanning logic for detecting security anti-patterns
+- **Purpose**: Core scanning logic for detecting security anti-patterns and CIS compliance violations
 - **Detection Capabilities**:
   - Containers using `:latest` image tags
   - Containers running as root user
+  - CIS Kubernetes Benchmark compliance violations
+  - Network policy violations
+  - Service account security issues
 - **Scanning Strategy**: Namespace-by-namespace iteration with permission-aware error handling
 
-### 4. Data Models (`models.py`)
+### 4. CIS Compliance Checker (`cis_checker.py`)
+- **Purpose**: Implements CIS Kubernetes Benchmark v1.9.0 compliance checks
+- **Supported Controls**:
+  - 5.1.4: Minimize access to secrets
+  - 5.2.1: Minimize privileged containers
+  - 5.2.2-5.2.4: Host namespace sharing controls
+  - 5.2.5: Privilege escalation controls
+  - 5.2.7-5.2.9: Container capabilities controls
+  - 5.3.2: Network policy requirements
+  - 5.7.2: Seccomp profile requirements
+  - 5.7.3: Security context requirements
+  - 5.7.4: Default namespace usage
+- **Compliance Levels**: Both L1 (basic) and L2 (advanced) checks
+
+### 5. Data Models (`models.py`)
 - **Purpose**: Pydantic models for API request/response structures
 - **Models**:
   - `ContainerIssue`: Base model for security issues
   - `LatestTagContainer`: Specific to latest tag violations
   - `RootContainer`: Specific to root user violations
-  - `ScanResponse`: Complete scan results
+  - `CISViolation`: CIS Kubernetes Benchmark violations
+  - `NetworkPolicyViolation`: Network policy compliance issues
+  - `ServiceAccountViolation`: Service account security issues
+  - `ScanResponse`: Complete scan results with all violation types
   - `ErrorResponse`: Error handling structure
 
 ## Data Flow
@@ -61,8 +81,11 @@ The application follows a modular, microservice-oriented architecture built with
 6. **Security Analysis**: 
    - Image tag inspection for `:latest` usage
    - Security context analysis for root user detection
-7. **Result Aggregation**: Security violations are collected and structured
-8. **Response**: JSON response with categorized security issues and summary
+   - CIS Kubernetes Benchmark compliance checking
+   - Network policy validation
+   - Service account security assessment
+7. **Result Aggregation**: Security violations are collected and structured by type
+8. **Response**: JSON response with categorized security issues, CIS violations, and comprehensive summary
 
 ## External Dependencies
 

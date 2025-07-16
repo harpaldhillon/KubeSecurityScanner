@@ -9,7 +9,8 @@ from typing import List, Dict, Any, Optional
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 
-from models import ScanResponse, LatestTagContainer, RootContainer
+from models import ScanResponse, LatestTagContainer, RootContainer, CISViolation, NetworkPolicyViolation, ServiceAccountViolation
+from cis_checker import CISComplianceChecker
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class KubernetesSecurityScanner:
     
     def __init__(self, k8s_client: client.CoreV1Api):
         self.k8s_client = k8s_client
+        self.cis_checker = CISComplianceChecker(k8s_client)
         
     async def scan_cluster(self) -> ScanResponse:
         """
@@ -32,6 +34,9 @@ class KubernetesSecurityScanner:
         
         latest_tag_containers = []
         root_containers = []
+        cis_violations = []
+        network_policy_violations = []
+        service_account_violations = []
         
         try:
             # Get all namespaces
@@ -41,9 +46,19 @@ class KubernetesSecurityScanner:
             # Scan each namespace
             for namespace in namespaces:
                 try:
-                    namespace_latest, namespace_root = await self._scan_namespace(namespace)
+                    namespace_latest, namespace_root, namespace_cis = await self._scan_namespace(namespace)
                     latest_tag_containers.extend(namespace_latest)
                     root_containers.extend(namespace_root)
+                    cis_violations.extend(namespace_cis)
+                    
+                    # Check network policies for this namespace
+                    namespace_network_violations = await self.cis_checker.check_network_policies(namespace)
+                    network_policy_violations.extend(namespace_network_violations)
+                    
+                    # Check service accounts for this namespace
+                    namespace_sa_violations = await self.cis_checker.check_service_accounts(namespace)
+                    service_account_violations.extend(namespace_sa_violations)
+                    
                 except ApiException as e:
                     if e.status == 403:
                         logger.warning(f"No permission to scan namespace {namespace}: {e}")
@@ -57,7 +72,10 @@ class KubernetesSecurityScanner:
                 "namespacesScanned": len(namespaces),
                 "latestTagIssues": len(latest_tag_containers),
                 "rootUserIssues": len(root_containers),
-                "totalIssues": len(latest_tag_containers) + len(root_containers)
+                "cisViolations": len(cis_violations),
+                "networkPolicyViolations": len(network_policy_violations),
+                "serviceAccountViolations": len(service_account_violations),
+                "totalIssues": len(latest_tag_containers) + len(root_containers) + len(cis_violations) + len(network_policy_violations) + len(service_account_violations)
             }
             
             logger.info(f"Scan completed: {summary}")
@@ -65,6 +83,9 @@ class KubernetesSecurityScanner:
             return ScanResponse(
                 latestTagContainers=latest_tag_containers,
                 rootContainers=root_containers,
+                cisViolations=cis_violations,
+                networkPolicyViolations=network_policy_violations,
+                serviceAccountViolations=service_account_violations,
                 summary=summary
             )
             
@@ -87,7 +108,7 @@ class KubernetesSecurityScanner:
             logger.error(f"Failed to list namespaces: {e}")
             raise
     
-    async def _scan_namespace(self, namespace: str) -> tuple[List[LatestTagContainer], List[RootContainer]]:
+    async def _scan_namespace(self, namespace: str) -> tuple[List[LatestTagContainer], List[RootContainer], List[CISViolation]]:
         """
         Scan a specific namespace for security issues
         """
@@ -95,6 +116,7 @@ class KubernetesSecurityScanner:
         
         latest_tag_containers = []
         root_containers = []
+        cis_violations = []
         
         try:
             # Get all pods in namespace
@@ -123,6 +145,12 @@ class KubernetesSecurityScanner:
                         )
                         if root_issue:
                             root_containers.append(root_issue)
+                        
+                        # Check CIS compliance
+                        container_cis_violations = await self.cis_checker.check_cis_compliance(
+                            namespace, pod_name, container.name, container, pod.spec
+                        )
+                        cis_violations.extend(container_cis_violations)
                 
                 # Check init containers
                 if pod.spec.init_containers:
@@ -141,17 +169,23 @@ class KubernetesSecurityScanner:
                         )
                         if root_issue:
                             root_containers.append(root_issue)
+                        
+                        # Check CIS compliance for init container
+                        init_cis_violations = await self.cis_checker.check_cis_compliance(
+                            namespace, pod_name, f"init-{init_container.name}", init_container, pod.spec
+                        )
+                        cis_violations.extend(init_cis_violations)
             
             logger.debug(
                 f"Namespace {namespace}: {len(latest_tag_containers)} latest tag issues, "
-                f"{len(root_containers)} root user issues"
+                f"{len(root_containers)} root user issues, {len(cis_violations)} CIS violations"
             )
             
         except ApiException as e:
             logger.error(f"Failed to scan namespace {namespace}: {e}")
             raise
         
-        return latest_tag_containers, root_containers
+        return latest_tag_containers, root_containers, cis_violations
     
     def _check_latest_tag(self, namespace: str, pod_name: str, 
                          container_name: str, image: str) -> Optional[LatestTagContainer]:

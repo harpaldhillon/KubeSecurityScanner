@@ -25,6 +25,37 @@ class RootContainer(ContainerIssue):
     run_as_non_root: Optional[bool] = Field(None, description="runAsNonRoot setting")
 
 
+class CISViolation(ContainerIssue):
+    """CIS Kubernetes Benchmark violation"""
+    control_id: str = Field(..., description="CIS control identifier (e.g., 5.1.1)")
+    control_title: str = Field(..., description="CIS control title")
+    severity: str = Field(..., description="Violation severity: Critical, High, Medium, Low")
+    description: str = Field(..., description="Detailed description of the violation")
+    remediation: str = Field(..., description="Recommended remediation steps")
+    level: str = Field(..., description="CIS level: L1 or L2")
+
+
+class NetworkPolicyViolation(BaseModel):
+    """Network policy CIS violation"""
+    namespace: str = Field(..., description="Kubernetes namespace")
+    control_id: str = Field(..., description="CIS control identifier")
+    control_title: str = Field(..., description="CIS control title")
+    severity: str = Field(..., description="Violation severity")
+    description: str = Field(..., description="Detailed description of the violation")
+    remediation: str = Field(..., description="Recommended remediation steps")
+
+
+class ServiceAccountViolation(BaseModel):
+    """Service account CIS violation"""
+    namespace: str = Field(..., description="Kubernetes namespace")
+    service_account: str = Field(..., description="Service account name")
+    control_id: str = Field(..., description="CIS control identifier")
+    control_title: str = Field(..., description="CIS control title")
+    severity: str = Field(..., description="Violation severity")
+    description: str = Field(..., description="Detailed description of the violation")
+    remediation: str = Field(..., description="Recommended remediation steps")
+
+
 class ScanResponse(BaseModel):
     """Response model for cluster security scan"""
     latestTagContainers: List[LatestTagContainer] = Field(
@@ -34,6 +65,18 @@ class ScanResponse(BaseModel):
     rootContainers: List[RootContainer] = Field(
         default_factory=list,
         description="Containers running as root"
+    )
+    cisViolations: List[CISViolation] = Field(
+        default_factory=list,
+        description="CIS Kubernetes Benchmark violations"
+    )
+    networkPolicyViolations: List[NetworkPolicyViolation] = Field(
+        default_factory=list,
+        description="Network policy related CIS violations"
+    )
+    serviceAccountViolations: List[ServiceAccountViolation] = Field(
+        default_factory=list,
+        description="Service account related CIS violations"
     )
     summary: dict = Field(
         default_factory=dict,
