@@ -1,0 +1,67 @@
+Here's a solid prompt to kickstart building an app that detects security anti-patterns in Kubernetes clusters — specifically:
+
+* Containers using the `latest` image tag
+* Containers running as root
+
+---
+
+## 🔧 Prompt for App to Detect "latest" Image Tags and Root Users in Kubernetes
+
+> 🚀 **Goal:** Build a Python FastAPI app that scans a Kubernetes cluster to identify:
+>
+> 1. All pods/containers using Docker images with the `latest` tag
+> 2. All containers running as `root` (i.e., `runAsUser: 0` or no user defined and defaulting to root)
+>
+> The app should expose a REST API endpoint `/scan` that returns this information in structured JSON format.
+
+---
+
+### 🧠 Prompt to Use
+
+````text
+Act as a Kubernetes security engineer.
+
+I want to build a Python FastAPI application that does the following:
+
+1. Connects to the Kubernetes cluster using the local kubeconfig or in-cluster config.
+2. Lists all pods and inspects their containers and init containers.
+3. Detects:
+   - Any container using an image with the `:latest` tag.
+   - Any container running as `root`, either by:
+     - `securityContext.runAsUser` being `0`
+     - `securityContext.runAsNonRoot` being `false` or undefined
+     - Pod-level securityContext allowing root
+4. Exposes a `/scan` REST API endpoint returning:
+   ```json
+   {
+     "latestTagContainers": [
+       {"namespace": "default", "pod": "nginx-pod", "container": "nginx", "image": "nginx:latest"}
+     ],
+     "rootContainers": [
+       {"namespace": "kube-system", "pod": "coredns", "container": "dns", "reason": "runAsUser=0"}
+     ]
+   }
+````
+
+5. Should use official Kubernetes Python client (`kubernetes` package).
+6. Should return structured JSON responses with clear, actionable info.
+7. Should gracefully handle cluster access errors, authentication issues, or permission denied (RBAC) errors.
+
+Please write the full FastAPI code with proper async handling, Kubernetes client initialization, error handling, and response models.
+
+```
+
+---
+
+### 🧩 Optional Extensions You Could Add
+
+- Expose a `/metrics` Prometheus endpoint (for alerting)
+- Add support for scanning only a given namespace
+- Add CLI mode: `python app.py --mode scan`
+- Export results to a file (JSON or CSV)
+- Add Kubernetes RBAC role YAML for safe access (GET pods, etc.)
+
+---
+
+Would you like me to generate the full FastAPI code to match this prompt?
+```
