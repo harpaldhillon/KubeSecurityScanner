@@ -10,12 +10,29 @@ A FastAPI-based application that scans Kubernetes clusters for security anti-pat
 - **Network Policy Validation**: Checks for missing network policies
 - **Service Account Security**: Validates service account configurations
 - **Comprehensive Reporting**: Detailed violation reports with remediation guidance
+- **Modern Web Interface**: Interactive dashboard for easy cluster security management
+
+## Quick Start
+
+1. **Install and Setup**
+   ```bash
+   ./local-setup.sh
+   ```
+
+2. **Run the Scanner**
+   ```bash
+   source venv/bin/activate
+   python main.py
+   ```
+
+3. **Access Web Interface**
+   Open your browser and go to: `http://localhost:5000`
 
 ## Requirements
 
 - Python 3.8+
 - Kubernetes cluster access (via kubeconfig or in-cluster configuration)
-- Required Python packages (see `requirements.txt`)
+- Required Python packages (see `requirements-local.txt`)
 
 ## Local Installation
 
@@ -57,12 +74,43 @@ python main.py
 
 The application will start on `http://localhost:5000`
 
+## User Interface
+
+### Web Dashboard
+The application includes a modern web interface that provides an intuitive way to interact with the security scanner:
+
+1. **Access the Interface**: Open your browser and go to `http://localhost:5000`
+2. **Health Check**: Click "Check Health" to verify cluster connectivity
+3. **Security Scan**: Click "Start Scan" to perform a comprehensive security assessment
+4. **View Results**: Results are displayed with:
+   - Summary statistics dashboard
+   - Expandable violation sections by type
+   - Color-coded severity levels (Critical, High, Medium, Low)
+   - Detailed remediation guidance
+5. **CIS Controls**: Click "View CIS Controls" to see all supported benchmark controls
+
+### Key Features
+- **Real-time Status**: Live feedback during scan operations
+- **Interactive Results**: Click to expand/collapse different violation types
+- **Severity Indicators**: Visual severity badges for quick prioritization
+- **Comprehensive Details**: Full violation descriptions with remediation steps
+- **Mobile Responsive**: Works on desktop, tablet, and mobile devices
+
+### Screenshot Guide
+The interface includes:
+- **Dashboard Cards**: Quick access to health check, scanning, and CIS controls
+- **Summary Statistics**: Visual overview of scan results
+- **Violation Details**: Organized by type with detailed information
+- **Remediation Guidance**: Step-by-step instructions to fix issues
+
 ## API Endpoints
+
+The application also provides REST API endpoints for programmatic access:
 
 ### Health Check
 ```bash
-curl http://localhost:5000/
-curl http://localhost:5000/health
+curl http://localhost:5000/api          # API health check
+curl http://localhost:5000/health       # Detailed health check
 ```
 
 ### Security Scan
@@ -84,10 +132,12 @@ docker build -t k8s-security-scanner .
 
 ### Run with Docker
 ```bash
-# Mount your kubeconfig
+# Mount your kubeconfig and access the web interface
 docker run -p 5000:5000 \
   -v ~/.kube/config:/root/.kube/config:ro \
   k8s-security-scanner
+
+# Then open http://localhost:5000 in your browser
 ```
 
 ## Kubernetes Deployment
@@ -176,6 +226,14 @@ Apply the configurations:
 ```bash
 kubectl apply -f rbac.yaml
 kubectl apply -f deployment.yaml
+
+# Get the external IP or use port-forwarding to access the web interface
+kubectl get service security-scanner
+
+# Or use port-forwarding for local access
+kubectl port-forward service/security-scanner 5000:80
+
+# Then open http://localhost:5000 in your browser
 ```
 
 ## Configuration

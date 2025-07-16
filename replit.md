@@ -13,6 +13,7 @@ Preferred communication style: Simple, everyday language.
 The application follows a modular, microservice-oriented architecture built with FastAPI. It's designed to run either inside a Kubernetes cluster (using in-cluster configuration) or externally (using kubeconfig). The architecture separates concerns into distinct components:
 
 - **API Layer**: FastAPI application handling HTTP requests and responses
+- **Web Interface**: Modern HTML/CSS/JavaScript dashboard for interactive scanning
 - **Scanner Logic**: Core security scanning functionality
 - **Kubernetes Client**: Authentication and client management
 - **Data Models**: Pydantic models for request/response validation
@@ -24,6 +25,7 @@ The application follows a modular, microservice-oriented architecture built with
 - **Technologies**: FastAPI, Uvicorn
 - **Responsibilities**: 
   - API endpoint exposure
+  - Web interface serving (HTML dashboard)
   - Application lifecycle management
   - Error handling and logging
   - Client initialization coordination
